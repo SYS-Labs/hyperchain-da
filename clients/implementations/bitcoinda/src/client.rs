@@ -84,7 +84,6 @@ impl DataAvailabilityClient for SyscoinClient {
 
     async fn get_inclusion_data(&self, blob_id: &str) -> Result<Option<InclusionData>, DAError> {
         let params = json!({ "versionhash_or_txid": blob_id[2..] });
-        // Assuming `call_rpc` returns a `Result` with an owned `Value`
         let response: Value = self.call_rpc("getnevmblobdata", params).await.map_err(|e| DAError { error: anyhow!(e), is_retriable: false })?;
     
         // Clone the error value if there is one, so we don't need to borrow from `response`
