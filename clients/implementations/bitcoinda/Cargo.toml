@@ -10,3 +10,13 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+async-trait.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+zksync_node_framework.workspace = true
+zksync_env_config.workspace = true
+zksync_da_client.workspace = true
+tokio.workspace = true
+da_utils.workspace = true
+da_config.workspace = true
+proto_config.workspace = true
