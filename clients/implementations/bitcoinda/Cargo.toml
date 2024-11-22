@@ -20,3 +20,5 @@ tokio.workspace = true
 da_utils.workspace = true
 da_config.workspace = true
 proto_config.workspace = true
+reqwest = "0.12.9"
+serde_json.workspace = true
