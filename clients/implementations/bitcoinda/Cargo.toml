@@ -22,3 +22,4 @@ da_config.workspace = true
 proto_config.workspace = true
 reqwest = "0.12.9"
 serde_json.workspace = true
+hex = "0.4.3"

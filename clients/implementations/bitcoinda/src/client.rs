@@ -1,11 +1,13 @@
 use async_trait::async_trait;
 use anyhow::{anyhow, Result};
+use hex::{encode, decode};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt;
 use std::sync::Arc;
 use zksync_da_client::{types::{DAError, DispatchResponse, InclusionData}, DataAvailabilityClient};
+use serde_json::Value;
 
 #[derive(Clone, Deserialize, Serialize)]
 struct RPCError {
@@ -24,12 +26,13 @@ struct BlobResult {
     versionhash: String,
 }
 
+#[derive(Clone)]
 pub struct SyscoinClient {
     client: Arc<Client>,
     rpc_url: String,
     user: String,
     password: String,
-    poda_url: Option<String>, 
+    poda_url: String, 
 }
 
 impl SyscoinClient {
@@ -39,7 +42,7 @@ impl SyscoinClient {
             rpc_url: "http://l1:8370".to_string(),
             user: "u".to_string(),
             password: "p".to_string(),
-            // poda_url: None,
+            poda_url: "http://poda.tanenbaum.io/vh/".to_string(),
         }
     }
 
@@ -66,7 +69,7 @@ impl SyscoinClient {
 #[async_trait]
 impl DataAvailabilityClient for SyscoinClient {
     async fn dispatch_blob(&self, _batch_number: u32, data: Vec<u8>) -> Result<DispatchResponse, DAError> {
-        let data_hex = hex::encode(&data);
+        let data_hex = encode(&data);
         let params = json!({ "data": data_hex });
         let response: CreateBlobResponse = self.call_rpc("syscoincreatenevmblob", params).await.map_err(|e| DAError { error: anyhow!(e), is_retriable: false })?;
 
@@ -81,22 +84,28 @@ impl DataAvailabilityClient for SyscoinClient {
 
     async fn get_inclusion_data(&self, blob_id: &str) -> Result<Option<InclusionData>, DAError> {
         let params = json!({ "versionhash_or_txid": blob_id[2..] });
+        // Assuming `call_rpc` returns a `Result` with an owned `Value`
         let response: Value = self.call_rpc("getnevmblobdata", params).await.map_err(|e| DAError { error: anyhow!(e), is_retriable: false })?;
-
-        if let Some(error) = response["error"].as_object() {
+    
+        // Clone the error value if there is one, so we don't need to borrow from `response`
+        if let Some(error) = response["error"].as_object().cloned() {
             return Err(DAError { error: anyhow!(error["message"].as_str().unwrap_or("Unknown error")), is_retriable: false });
         }
-
-        let data = response["result"]["data"].as_str()
-            .map(hex::decode)
+    
+        // Similarly clone the "data" string
+        let data_string = response["result"]["data"].as_str().map(String::from);
+        let data = data_string
+            .as_deref()
+            .map(decode)
             .transpose()
             .map_err(|e| DAError { error: anyhow!(e), is_retriable: false })?;
-
+    
         match data {
             Some(bytes) => Ok(Some(InclusionData { data: bytes })),
             None => Ok(None),
         }
     }
+
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
         Box::new(self.clone())
